@@ -1,0 +1,16 @@
+endofline-club-api	endofline-club.txt	/*endofline-club-api*
+endofline-club-contents	endofline-club.txt	/*endofline-club-contents*
+endofline-club-enabled	endofline-club.txt	/*endofline-club-enabled*
+endofline-club-introduction	endofline-club.txt	/*endofline-club-introduction*
+endofline-club-namespace_prefixes	endofline-club.txt	/*endofline-club-namespace_prefixes*
+endofline-club-options	endofline-club.txt	/*endofline-club-options*
+endofline-club-prefix	endofline-club.txt	/*endofline-club-prefix*
+endofline-club-prefix_hl	endofline-club.txt	/*endofline-club-prefix_hl*
+endofline-club-setup	endofline-club.txt	/*endofline-club-setup*
+endofline-club-strip_virtual_line_padding	endofline-club.txt	/*endofline-club-strip_virtual_line_padding*
+endofline-club-virt_text_pos	endofline-club.txt	/*endofline-club-virt_text_pos*
+endofline-club.disable()	endofline-club.txt	/*endofline-club.disable()*
+endofline-club.enable()	endofline-club.txt	/*endofline-club.enable()*
+endofline-club.is_enabled()	endofline-club.txt	/*endofline-club.is_enabled()*
+endofline-club.nvim	endofline-club.txt	/*endofline-club.nvim*
+endofline-club.setup()	endofline-club.txt	/*endofline-club.setup()*

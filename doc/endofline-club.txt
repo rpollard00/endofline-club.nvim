@@ -1,0 +1,88 @@
+*endofline-club.nvim*       Render LSP codelens at end of line
+
+===============================================================================
+CONTENTS                                            *endofline-club-contents*
+
+1. Introduction                                    |endofline-club-introduction|
+2. Setup                                           |endofline-club-setup|
+3. Options                                         |endofline-club-options|
+4. API                                             |endofline-club-api|
+
+===============================================================================
+INTRODUCTION                                    *endofline-club-introduction*
+
+endofline-club.nvim converts Neovim's built-in LSP codelens virtual-lines
+rendering into end-of-line virtual text. This avoids layout shifting and keeps
+codelens independent from any particular language server.
+
+===============================================================================
+SETUP                                                    *endofline-club-setup*
+
+The plugin auto-enables when loaded. To configure it explicitly: >lua
+
+  require('endofline-club').setup({
+    virt_text_pos = 'eol',
+  })
+<
+
+===============================================================================
+OPTIONS                                                *endofline-club-options*
+
+Defaults: >lua
+
+  {
+    enabled = true,
+    virt_text_pos = 'eol',
+    prefix = '  ',
+    prefix_hl = 'LspCodeLensSeparator',
+    strip_virtual_line_padding = true,
+    namespace_prefixes = { 'nvim.lsp.codelens' },
+  }
+<
+
+                                                        *endofline-club-enabled*
+`enabled` ~
+  Enable conversion after setup.
+
+                                                   *endofline-club-virt_text_pos*
+`virt_text_pos` ~
+  Position passed to extmark virtual text. `eol` avoids layout shifts. Other
+  valid values include `right_align` and `inline`.
+
+                                                          *endofline-club-prefix*
+`prefix` ~
+  Text inserted before the codelens chunks.
+
+                                                       *endofline-club-prefix_hl*
+`prefix_hl` ~
+  Highlight group for `prefix`.
+
+                                  *endofline-club-strip_virtual_line_padding*
+`strip_virtual_line_padding` ~
+  Strip Neovim's virtual-line indentation padding before rendering at EOL.
+
+                                             *endofline-club-namespace_prefixes*
+`namespace_prefixes` ~
+  Namespace name prefixes to convert. The default matches Neovim's LSP codelens
+  namespaces.
+
+===============================================================================
+API                                                        *endofline-club-api*
+
+                                                        *endofline-club.setup()*
+`setup`({opts}) ~
+  Configure and install the conversion wrapper.
+
+                                                       *endofline-club.enable()*
+`enable`() ~
+  Enable conversion for future codelens renders.
+
+                                                      *endofline-club.disable()*
+`disable`() ~
+  Disable conversion for future codelens renders.
+
+                                                   *endofline-club.is_enabled()*
+`is_enabled`() ~
+  Return whether conversion is enabled.
+
+vim:tw=78:ts=8:noet:ft=help:norl:
