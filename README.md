@@ -22,19 +22,8 @@ Neovim 0.10+ moved codelens into virtual lines. That can cause visual disruption
 
 ```lua
 {
-  'reese/endofline-club.nvim',
+  'rpollard00/endofline-club.nvim',
   opts = {},
-}
-```
-
-### packer.nvim
-
-```lua
-use {
-  'reese/endofline-club.nvim',
-  config = function()
-    require('endofline-club').setup()
-  end,
 }
 ```
 
