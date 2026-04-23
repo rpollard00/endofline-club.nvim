@@ -48,6 +48,14 @@ require('endofline-club').setup({
   -- useful above the line, but ugly at EOL, so it is stripped by default.
   strip_virtual_line_padding = true,
 
+  -- Keep showing the last resolved text while Neovim is rendering an unresolved
+  -- codelens placeholder. This avoids a brief disappear/reappear flicker for
+  -- servers that resolve lenses asynchronously.
+  preserve_unresolved_lenses = true,
+
+  -- Maximum number of remembered resolved lens lines per buffer.
+  max_preserved_lenses = 512,
+
   -- Namespace prefixes to convert. The default matches Neovim's codelens namespaces.
   namespace_prefixes = { 'nvim.lsp.codelens' },
 })

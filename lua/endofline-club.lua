@@ -13,6 +13,12 @@ local defaults = {
   prefix_hl = 'LspCodeLensSeparator',
   --- Strip Neovim's virtual-line indentation padding before rendering at EOL.
   strip_virtual_line_padding = true,
+  --- Keep showing the last resolved text while Neovim is rendering an unresolved
+  --- codelens placeholder. This avoids a brief disappear/reappear flicker for
+  --- servers that resolve lenses asynchronously.
+  preserve_unresolved_lenses = true,
+  --- Maximum number of remembered resolved lens lines per buffer.
+  max_preserved_lenses = 512,
   --- Namespace name prefixes that should be converted. Defaults cover Neovim's LSP codelens.
   namespace_prefixes = { 'nvim.lsp.codelens' },
 }
@@ -23,6 +29,7 @@ local state = {
   opts = vim.deepcopy(defaults),
   original_set_extmark = nil,
   namespace_cache = {},
+  lens_cache = {},
 }
 
 local function starts_with(s, prefix)
@@ -83,7 +90,49 @@ local function is_padding_chunk(chunk)
     and chunk[1]:match('^%s*$') ~= nil
 end
 
-local function convert_chunks(chunks)
+local function cache_key(bufnr, ns, line)
+  if not state.opts.preserve_unresolved_lenses then
+    return nil
+  end
+
+  local ok, lines = pcall(api.nvim_buf_get_lines, bufnr, line, line + 1, false)
+  if not ok or not lines or not lines[1] then
+    return nil
+  end
+
+  return tostring(ns) .. '\0' .. lines[1]
+end
+
+local function remember_chunks(bufnr, key, chunks)
+  if not key or #chunks == 0 then
+    return
+  end
+
+  local cache = state.lens_cache[bufnr]
+  if not cache then
+    cache = { entries = {}, order = {} }
+    state.lens_cache[bufnr] = cache
+  end
+
+  if not cache.entries[key] then
+    table.insert(cache.order, key)
+  end
+  cache.entries[key] = vim.deepcopy(chunks)
+
+  local max = state.opts.max_preserved_lenses or defaults.max_preserved_lenses
+  while max > 0 and #cache.order > max do
+    local old_key = table.remove(cache.order, 1)
+    cache.entries[old_key] = nil
+  end
+end
+
+local function recall_chunks(bufnr, key)
+  local cache = state.lens_cache[bufnr]
+  local chunks = cache and cache.entries[key]
+  return chunks and vim.deepcopy(chunks) or nil
+end
+
+local function convert_chunks(chunks, bufnr, ns, line)
   local out = {}
   local start = 1
 
@@ -106,21 +155,25 @@ local function convert_chunks(chunks)
     end
   end
 
-  -- Native codelens may briefly render an empty placeholder while resolving. Do not
-  -- create an extmark with only our prefix for that case.
+  -- Native codelens may briefly render an empty placeholder while resolving.
+  -- Reuse the last resolved text for this line when possible; otherwise do not
+  -- create an extmark with only our prefix.
+  local key = cache_key(bufnr, ns, line)
+
   if not has_visible_text then
-    return {}
+    return recall_chunks(bufnr, key) or {}
   end
 
   if state.opts.prefix and state.opts.prefix ~= '' then
     table.insert(out, { state.opts.prefix, state.opts.prefix_hl })
   end
   vim.list_extend(out, body)
+  remember_chunks(bufnr, key, out)
 
   return out
 end
 
-local function convert_opts(opts)
+local function convert_opts(opts, bufnr, ns, line)
   local chunks = first_virtual_line(opts.virt_lines)
   if not chunks then
     return opts
@@ -131,7 +184,7 @@ local function convert_opts(opts)
   new_opts.virt_lines_above = nil
   new_opts.virt_lines_leftcol = nil
   new_opts.virt_lines_overflow = nil
-  new_opts.virt_text = convert_chunks(chunks)
+  new_opts.virt_text = convert_chunks(chunks, bufnr, ns, line)
   new_opts.virt_text_pos = state.opts.virt_text_pos
 
   -- Keep codelens visually subtle and composable with user highlights.
@@ -153,7 +206,7 @@ local function install()
       and opts.virt_lines ~= nil
       and is_codelens_namespace(ns)
     then
-      opts = convert_opts(opts)
+      opts = convert_opts(opts, bufnr, ns, line)
     end
 
     return state.original_set_extmark(bufnr, ns, line, col, opts)
@@ -179,6 +232,7 @@ end
 --- Clear namespace cache. Mostly useful for tests or unusual runtime namespace creation.
 function M.reset_cache()
   state.namespace_cache = {}
+  state.lens_cache = {}
 end
 
 --- Setup endofline-club.nvim.
@@ -187,6 +241,7 @@ function M.setup(opts)
   state.opts = vim.tbl_deep_extend('force', vim.deepcopy(defaults), opts or {})
   state.enabled = state.opts.enabled ~= false
   state.namespace_cache = {}
+  state.lens_cache = {}
   install()
 end
 
