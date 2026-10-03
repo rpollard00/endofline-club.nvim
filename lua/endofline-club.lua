@@ -28,8 +28,10 @@ local state = {
   enabled = true,
   opts = vim.deepcopy(defaults),
   original_set_extmark = nil,
+  original_winrestview = nil,
   namespace_cache = {},
   lens_cache = {},
+  pending_viewport_fix = nil,
 }
 
 local function starts_with(s, prefix)
@@ -193,12 +195,54 @@ local function convert_opts(opts, bufnr, ns, line)
   return new_opts
 end
 
+-- Neovim's virtual-line codelens renderer calls `winrestview({ topfill = 1 })`
+-- immediately after drawing a lens above row 0. That is needed to reveal its
+-- virtual line, but becomes stale once we turn it into EOL virtual text. Queue
+-- the prior fill so the renderer's following call can be replaced.
+local function queue_first_line_viewport_fix(bufnr, line, opts)
+  if line ~= 0 or not opts.virt_lines_above then
+    return nil
+  end
+
+  local win = api.nvim_get_current_win()
+  if not api.nvim_win_is_valid(win) then
+    return nil
+  end
+
+  local view = vim.fn.winsaveview()
+  local fix = { win = win, bufnr = bufnr, topfill = view.topfill }
+  state.pending_viewport_fix = fix
+  vim.schedule(function()
+    if state.pending_viewport_fix == fix then
+      state.pending_viewport_fix = nil
+    end
+  end)
+end
+
 local function install()
   if state.installed then
     return
   end
 
   state.original_set_extmark = api.nvim_buf_set_extmark
+  state.original_winrestview = vim.fn.winrestview
+
+  vim.fn.winrestview = function(view)
+    local fix = state.pending_viewport_fix
+    if fix
+      and type(view) == 'table'
+      and view.topfill == 1
+      and api.nvim_get_current_win() == fix.win
+      and api.nvim_win_get_buf(fix.win) == fix.bufnr
+    then
+      state.pending_viewport_fix = nil
+      local restored_view = vim.deepcopy(view)
+      restored_view.topfill = fix.topfill
+      return state.original_winrestview(restored_view)
+    end
+
+    return state.original_winrestview(view)
+  end
 
   api.nvim_buf_set_extmark = function(bufnr, ns, line, col, opts)
     if state.enabled
@@ -206,6 +250,7 @@ local function install()
       and opts.virt_lines ~= nil
       and is_codelens_namespace(ns)
     then
+      queue_first_line_viewport_fix(bufnr, line, opts)
       opts = convert_opts(opts, bufnr, ns, line)
     end
 
@@ -233,6 +278,7 @@ end
 function M.reset_cache()
   state.namespace_cache = {}
   state.lens_cache = {}
+  state.pending_viewport_fix = nil
 end
 
 --- Setup endofline-club.nvim.
@@ -242,6 +288,7 @@ function M.setup(opts)
   state.enabled = state.opts.enabled ~= false
   state.namespace_cache = {}
   state.lens_cache = {}
+  state.pending_viewport_fix = nil
   install()
 end
 
